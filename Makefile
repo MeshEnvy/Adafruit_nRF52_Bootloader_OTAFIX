@@ -135,6 +135,9 @@ C_SRC += \
   src/main.c \
   src/screen.c \
   src/images.c \
+  src/ota_delta.c \
+  src/sha256.c \
+  src/detools/detools.c \
 
 # all files in boards
 C_SRC += src/boards/boards.c
@@ -284,6 +287,10 @@ CFLAGS += \
 	-Wmissing-format-attribute \
 	-Wno-endif-labels \
 	-Wunreachable-code
+
+# MeshCore OTA: the bootloader only ever applies CRLE-compressed in-place .mota deltas, so drop the
+# detools uncompressed-patch reader (saves flash in the size-constrained bootloader region).
+CFLAGS += -DDETOOLS_CONFIG_COMPRESSION_NONE=0
 
 # Suppress warning caused by SDK
 CFLAGS += -Wno-unused-parameter -Wno-expansion-to-defined

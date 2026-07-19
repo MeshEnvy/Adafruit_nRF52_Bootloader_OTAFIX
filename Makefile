@@ -40,14 +40,18 @@ else
   LD_FILE = linker/$(MCU_SUB_VARIANT).ld
 endif
 
-GIT_VERSION := $(shell git describe --dirty --always --tags)
+ifndef GIT_VERSION
+GIT_VERSION := $(shell git describe --dirty --always --tags 2>/dev/null)
 # This OTAFIX fork is released as tags of the form 0.9.2-OTAFIX<major>.<minor>. An untagged
 # build makes `git describe` fall back to a bare commit hash, which the MK_BOOTLOADER_VERSION
 # parser below cannot split into major.minor.patch — substitute the release string instead.
 ifeq (,$(findstring OTAFIX,$(GIT_VERSION)))
 GIT_VERSION := 0.9.2-OTAFIX2.3
 endif
-GIT_SUBMODULE_VERSIONS := $(shell git submodule status | cut -d" " -f3,4 | paste -s -d" " -)
+endif
+ifndef GIT_SUBMODULE_VERSIONS
+GIT_SUBMODULE_VERSIONS := $(shell git submodule status 2>/dev/null | cut -d" " -f3,4 | paste -s -d" " -)
+endif
 
 # compiled file name
 OUT_NAME = $(BOARD)_bootloader-$(GIT_VERSION)

@@ -30,7 +30,8 @@ Real-hardware apply debugging is slow and brick-prone (reflash + LoRa fetch per 
 caught a real bug: in-place deltas were built with `--inplace-memory = FS_START - APP_BASE` (`0xAE000`),
 but the apply workspace is `[APP_BASE, mota_addr)` — the staged `.mota` sits *inside* that span, so detools
 overran the workspace and returned `DETOOLS_IO_FAILED`; the device just rebooted with nothing applied. The
-correct value (`MOTA_NRF52_INPLACE_MEMORY = 0x98000`, leaving room below `FS_START` for the staged `.mota`)
+correct value (per-patch `memory_size` derived from the target's staging ceiling minus the staged `.mota`
+size; companion ceiling `0xD4000`, repeater `0xED000`)
 makes the apply succeed — proven here in seconds. To exercise that workspace boundary, run `apply_sim` with
 a realistic (~550 KB) image; the tiny committed vector validates the apply *pipeline* (parse / scan / base
 check / detools decode / result hash).
@@ -57,5 +58,5 @@ array, an obvious alias the compiler never gets wrong. So `readback_test` guards
 ## Regenerating the committed vector
 
 `test/vectors/{base.img,new.img,delta.mota}` are built from the MeshCore reference (`tools/mota/motalib`)
-with a small synthetic firmware and an in-place delta (`memory_size = 0x98000`, `segment_size = 4096`,
+with a small synthetic firmware and an in-place delta (`segment_size = 4096`, memory_size auto-derived)
 `crle`). Regenerate if the `.mota`/EndF format changes.

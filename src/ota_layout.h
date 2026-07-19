@@ -11,9 +11,11 @@
 #define OTA_LAYOUT_H_
 
 #define MOTA_NRF52_APP_BASE    0x00026000u   // S140 end (== CODE_REGION_1_START on RAK4631)
-// Scan/workspace ceiling: below the lowest FS region. Companion builds put ExtraFS at 0xD4000; the
-// repeater leaves 0xD4000..0xED000 free. 0xD4000 is the safe universal ceiling for all RAK4631 roles.
-#define MOTA_NRF52_FS_START    0x000D4000u
+// Scan ceiling: InternalFS start. The bootloader scans [APP_BASE, FS_START) for a staged `.mota`.
+// Companion builds stage below ExtraFS (0xD4000); repeaters may stage up to here. Scanning to
+// InternalFS is safe — apply writes stay below the found mota, and false positives in ExtraFS are
+// rejected by the full `.mota` parse + APRV + base_hash gates.
+#define MOTA_NRF52_FS_START    0x000ED000u
 #define MOTA_NRF52_FLASH_PAGE  4096u
 
 // GPREGRET value MeshCore writes (then resets) to ask the bootloader to apply a staged `.mota`.

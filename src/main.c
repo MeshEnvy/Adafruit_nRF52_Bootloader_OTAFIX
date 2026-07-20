@@ -301,6 +301,8 @@ static void check_dfu_mode(void) {
 
   // Enter DFU mode accordingly to input
   if (dfu_start || !valid_app) {
+    board_dfu_enter();
+
     if (_ota_dfu) {
       #ifdef DISPLAY_PIN_SCK
         board_display_init();

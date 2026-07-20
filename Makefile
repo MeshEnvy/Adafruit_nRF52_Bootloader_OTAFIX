@@ -430,13 +430,22 @@ clean:
 linkermap: $(BUILD)/$(OUT_NAME).out
 	@linkermap -v $<.map
 
+# GIT_VERSION is passed on the command line (e.g. build-bl.sh GIT_VERSION=0.1.0). When it
+# changes without a clean, stale .o files keep the old -DUF2_VERSION* strings — rewrite
+# this stamp so every object rebuilds.
+$(BUILD)/version.stamp: force
+	@$(MKDIR) $(BUILD)
+	@echo '$(GIT_VERSION)' | cmp -s - $@ 2>/dev/null || echo '$(GIT_VERSION)' > $@
+
+.PHONY: force
+
 # Create objects from C SRC files
-$(BUILD)/%.o: %.c
+$(BUILD)/%.o: %.c $(BUILD)/version.stamp
 	@echo CC $(notdir $<)
 	@$(CC) $(CFLAGS) $(INC_PATHS) -c -o $@ $<
 
 # Assemble files
-$(BUILD)/%.o: %.S
+$(BUILD)/%.o: %.S $(BUILD)/version.stamp
 	@echo AS $(notdir $<)
 	@$(CC) -x assembler-with-cpp $(ASFLAGS) $(INC_PATHS) -c -o $@ $<
 

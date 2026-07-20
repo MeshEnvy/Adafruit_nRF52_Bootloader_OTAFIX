@@ -118,7 +118,7 @@ STATIC_ASSERT(FAT_ENTRIES_PER_SECTOR                       ==       256); // FAT
 #define STR(x) STR0(x)
 
 char infoUf2File[128*3] =
-    "UF2 Bootloader " UF2_VERSION "\r\n"
+    "EnvyBoot " UF2_VERSION_BASE "\r\n"
     "Model: " UF2_PRODUCT_NAME "\r\n"
     "Board-ID: " UF2_BOARD_ID "\r\n"
     "Date: " __DATE__ "\r\n";

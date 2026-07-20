@@ -135,6 +135,9 @@ void board_init(void) {
   SysTick_Config(SystemCoreClock / 1000);
 }
 
+// Optional audible/visual cue when the bootloader commits to DFU (board-specific).
+void __attribute__((weak)) board_dfu_enter(void) {}
+
 // Actions at the end of board_teardown.
 void __attribute__((weak)) board_teardown2(void) {}
 

@@ -118,9 +118,10 @@ STATIC_ASSERT(FAT_ENTRIES_PER_SECTOR                       ==       256); // FAT
 #define STR(x) STR0(x)
 
 char infoUf2File[128*3] =
-    "EnvyBoot " UF2_VERSION_BASE "\r\n"
+    "UF2 Bootloader " UF2_VERSION "\r\n"
     "Model: " UF2_PRODUCT_NAME "\r\n"
     "Board-ID: " UF2_BOARD_ID "\r\n"
+    "EnvyOS: EnvyBoot OTAFIX\r\n"
     "Date: " __DATE__ "\r\n";
 
 const char indexFile[] =

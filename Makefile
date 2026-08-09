@@ -266,6 +266,12 @@ IPATH += \
 #------------------------------------------------------------------------------
 
 #flags common to all targets
+# -flto: the MeshCore OTA in-place applier (detools + sha256 + ota_delta, ~6 KB) pushes the bootloader
+# to the edge of the 39 KB region; display-UI boards (screen.c + images.c, e.g. heltec_t114) OVERFLOW
+# without it. LTO recovers ~3-4 KB image-wide so OTA fits on every nRF52840 board (t114 ~95%, others
+# ~88%). HW-validated on RAK4631: the LTO bootloader builds, boots, runs serial DFU, AND applies an
+# in-place delta. NOTE: LTO REQUIRES ota_delta.c's volatile fl_read (the in-place readback aliases the
+# nrfx flash write through a cast pointer; without volatile, LTO caches a stale read -> apply refused).
 CFLAGS += \
 	-mthumb \
 	-mabi=aapcs \
@@ -274,6 +280,7 @@ CFLAGS += \
 	-mfpu=fpv4-sp-d16 \
 	-ggdb \
 	-Os \
+	-flto \
 	-ffunction-sections \
 	-fdata-sections \
 	-fno-builtin \

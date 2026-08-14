@@ -40,24 +40,35 @@ else
   LD_FILE = linker/$(MCU_SUB_VARIANT).ld
 endif
 
-ifndef GIT_VERSION
-GIT_VERSION := $(shell git describe --dirty --always --tags 2>/dev/null)
-# This OTAFIX fork is released as tags of the form 0.9.2-OTAFIX<major>.<minor>. An untagged
-# build makes `git describe` fall back to a bare commit hash, which the MK_BOOTLOADER_VERSION
-# parser below cannot split into major.minor.patch — substitute the release string instead.
-ifeq (,$(findstring OTAFIX,$(GIT_VERSION)))
-GIT_VERSION := 0.9.2-OTAFIX2.3
+# Lineage versions for INFO_UF2.TXT — sync defaults with FRESHEN.lock on freshen/rebase.
+UF2_UPSTREAM_VERSION ?= 0.9.2
+OTAFIX_VERSION         ?= 2.3-BP1.3
+MOTA_VK_SHA            ?= 21c8a9c
+
+# EnvyBoot semver (INFO_UF2.TXT line 4; ENVYOS_VERSIONS bootloader=). build-bl.sh passes ENVYBOOT_VERSION= or GIT_VERSION=.
+ENVYBOOT_VERSION_DEFAULT := 0.1.3
+
+ifdef GIT_VERSION
+ENVYBOOT_VERSION := $(GIT_VERSION)
+endif
+
+ifndef ENVYBOOT_VERSION
+ENVYBOOT_VERSION := $(shell git describe --dirty --always --tags --match 'v[0-9]*' 2>/dev/null | sed 's/^v//')
+ifeq ($(findstring .,$(word 1,$(subst -, ,$(ENVYBOOT_VERSION)))),)
+ENVYBOOT_VERSION := $(ENVYBOOT_VERSION_DEFAULT)
 endif
 endif
+
 ifndef GIT_SUBMODULE_VERSIONS
 GIT_SUBMODULE_VERSIONS := $(shell git submodule status 2>/dev/null | cut -d" " -f3,4 | paste -s -d" " -)
 endif
 
 # compiled file name
-OUT_NAME = $(BOARD)_bootloader-$(GIT_VERSION)
+OUT_NAME = $(BOARD)_bootloader-$(ENVYBOOT_VERSION)
 
-# merged file = compiled + sd
+# merged hex = bootloader + sd (bench / gdb only)
 MERGED_FILE = $(OUT_NAME)_$(SD_NAME)_$(SD_VERSION)
+RECOVERY_ZIP = $(BUILD)/$(OUT_NAME).recovery.zip
 
 UF2_FAMILY_ID_BOOTLOADER = 0xd663823c
 
@@ -334,11 +345,14 @@ ifneq ($(USE_NFCT),yes)
 endif
 
 CFLAGS += -DSOFTDEVICE_PRESENT
-CFLAGS += -DUF2_VERSION_BASE='"$(GIT_VERSION)"'
-CFLAGS += -DUF2_VERSION='"$(GIT_VERSION) $(GIT_SUBMODULE_VERSIONS)"'
-CFLAGS += -DBLEDIS_FW_VERSION='"$(GIT_VERSION) $(SD_NAME) $(SD_VERSION)"'
+CFLAGS += -DUF2_VERSION_BASE='"$(UF2_UPSTREAM_VERSION)"'
+CFLAGS += -DUF2_VERSION='"$(UF2_UPSTREAM_VERSION)"'
+CFLAGS += -DOTAFIX_VERSION='"$(OTAFIX_VERSION)"'
+CFLAGS += -DMOTA_VK_SHA='"$(MOTA_VK_SHA)"'
+CFLAGS += -DENVYBOOT_VERSION='"$(ENVYBOOT_VERSION)"'
+CFLAGS += -DBLEDIS_FW_VERSION='"EnvyBoot $(ENVYBOOT_VERSION) $(SD_NAME) $(SD_VERSION)"'
 
-_VER = $(subst ., ,$(word 1, $(subst -, ,$(GIT_VERSION))))
+_VER = $(subst ., ,$(UF2_UPSTREAM_VERSION))
 CFLAGS += -DMK_BOOTLOADER_VERSION='($(word 1,$(_VER)) << 16) + ($(word 2,$(_VER)) << 8) + $(word 3,$(_VER))'
 
 # Debug option use RTT for printf
@@ -409,7 +423,7 @@ INC_PATHS = $(addprefix -I,$(IPATH))
 .PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb
 
 # default target to build
-all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BUILD)/$(MERGED_FILE).hex $(BUILD)/$(MERGED_FILE).zip
+all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/$(OUT_NAME).uf2 $(BUILD)/$(MERGED_FILE).hex $(RECOVERY_ZIP)
 
 # Print out the value of a make variable.
 # https://stackoverflow.com/questions/16467718/how-to-print-out-a-variable-in-makefile
@@ -430,12 +444,11 @@ clean:
 linkermap: $(BUILD)/$(OUT_NAME).out
 	@linkermap -v $<.map
 
-# GIT_VERSION is passed on the command line (e.g. build-bl.sh GIT_VERSION=0.1.0). When it
-# changes without a clean, stale .o files keep the old -DUF2_VERSION* strings — rewrite
-# this stamp so every object rebuilds.
+# Lineage version strings passed on the command line (build-bl.sh). When any change without a clean,
+# stale .o files keep the old -D*VERSION* strings — rewrite this stamp so every object rebuilds.
 $(BUILD)/version.stamp: force
 	@$(MKDIR) $(BUILD)
-	@echo '$(GIT_VERSION)' | cmp -s - $@ 2>/dev/null || echo '$(GIT_VERSION)' > $@
+	@echo '$(UF2_UPSTREAM_VERSION) $(OTAFIX_VERSION) $(MOTA_VK_SHA) $(ENVYBOOT_VERSION)' | cmp -s - $@ 2>/dev/null || echo '$(UF2_UPSTREAM_VERSION) $(OTAFIX_VERSION) $(MOTA_VK_SHA) $(ENVYBOOT_VERSION)' > $@
 
 .PHONY: force
 
@@ -467,8 +480,8 @@ $(BUILD)/$(OUT_NAME)_nosd.hex: $(BUILD)/$(OUT_NAME).hex
 	@echo Create $(notdir $@)
 	@python3 tools/hexmerge.py --overlap=replace -o $@ $< $(MBR_HEX)
 
-# Bootolader self-update uf2
-$(BUILD)/update-$(OUT_NAME)_nosd.uf2: $(BUILD)/$(OUT_NAME)_nosd.hex
+# Bootloader self-update UF2 (bootloader + MBR; SoftDevice not included)
+$(BUILD)/$(OUT_NAME).uf2: $(BUILD)/$(OUT_NAME)_nosd.hex
 	@echo Create $(notdir $@)
 	@python3 lib/uf2/utils/uf2conv.py -f $(UF2_FAMILY_ID_BOOTLOADER) -c -o $@ $^
 
@@ -477,18 +490,21 @@ $(BUILD)/$(MERGED_FILE).hex: $(BUILD)/$(OUT_NAME).hex
 	@echo Create $(notdir $@)
 	@python3 tools/hexmerge.py -o $@ $< $(SD_HEX)
 
-# Create pkg zip file for bootloader+SD combo to use with DFU CDC
-$(BUILD)/$(MERGED_FILE).zip: $(BUILD)/$(OUT_NAME).hex
+# Recovery package: bootloader + SoftDevice for serial DFU (break-glass)
+$(RECOVERY_ZIP): $(BUILD)/$(OUT_NAME).hex
+	@echo Create $(notdir $@)
 	@$(NRFUTIL) dfu genpkg --dev-type 0x0052 --dev-revision $(DFU_DEV_REV) --bootloader $< --softdevice $(SD_HEX) $@
+	@python3 tools/write_recovery_readme.py --board $(BOARD) --envyboot $(ENVYBOOT_VERSION) --sd-name $(SD_NAME) --sd-version $(SD_VERSION) --out $(BUILD)/README.txt --zip $@
+	@rm -f $(BUILD)/README.txt
 
 #-------------- Artifacts --------------
 $(BIN):
 	@$(MKDIR) -p $@
 
 copy-artifact: $(BIN)
-	@$(CP) $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BIN)
+	@$(CP) $(BUILD)/$(OUT_NAME).uf2 $(BIN)
 	@$(CP) $(BUILD)/$(MERGED_FILE).hex $(BIN)
-	@$(CP) $(BUILD)/$(MERGED_FILE).zip $(BIN)
+	@$(CP) $(RECOVERY_ZIP) $(BIN)
 
 #--------------------------------------
 # Flash Target
@@ -524,13 +540,13 @@ flash-mbr:
 	$(call FLASH_NOUICR_CMD,$(MBR_HEX))
 
 # flash using uf2
-flash-uf2: $(BUILD)/update-$(OUT_NAME)_nosd.uf2
+flash-uf2: $(BUILD)/$(OUT_NAME).uf2
 	@echo Flashing: $(notdir $<)
 	python lib/uf2/utils/uf2conv.py -f $(UF2_FAMILY_ID_BOOTLOADER) --deploy $<
 
 # dfu with adafruit-nrfutil using CDC interface
 dfu-flash: flash-dfu
-flash-dfu: $(BUILD)/$(MERGED_FILE).zip
+flash-dfu: $(RECOVERY_ZIP)
 	@:$(call check_defined, SERIAL, example: SERIAL=/dev/ttyACM0)
 	$(NRFUTIL) --verbose dfu serial --package $< -p $(SERIAL) -b 115200 --singlebank --touch 1200
 

@@ -1,58 +1,31 @@
-# Adafruit nRF52 Bootloader with Enhanced OTA DFU
+# EnvyBoot
 
-## Changes in OTAFIX 2.3
+MeshEnvy's nRF52 UF2 bootloader for EnvyOS field nodes: in-place `.mota` apply, BLE/serial DFU, and UF2 drag-and-drop.
 
-- **In-place OTA delta apply**  
-  Adds on-device application of compact firmware *delta* updates (MeshCore `.mota` containers), letting a device with no A/B slot update over a low-bandwidth link without transferring a full image.  
-  After the running application stages a verified, approved `.mota` in free flash and reboots with the apply trigger set, the bootloader locates it, re-checks that the delta was built against the exact running firmware (the `.mota` `base_hash` vs the `EndF` trailer of the current app), applies the patch in place with the bundled [detools](https://github.com/eerimoq/detools) decoder, and verifies the result against the manifest `image_hash` before marking the new image valid.  
-  The trigger is a dedicated `GPREGRET` magic set only on approval, so normal boots never scan or apply. Any failure (no trigger, base mismatch, bad patch, post-apply hash mismatch) leaves the bank invalid and falls through to OTA DFU — an interrupted apply can never boot a corrupt image.
+**Version:** four lineage lines in `INFO_UF2.TXT` on the UF2 drive (defaults mirror `FRESHEN.lock`; override via `make` vars):
 
-## Changes in OTAFIX 2.2
+1. `UF2 Bootloader <adafruit_base>` — Adafruit base (currently **0.9.2**)
+2. `OTAFIX <otafix_version>` — oltaco OTAFIX pin (currently **2.3-BP1.3**)
+3. `MOTA <mota_vk_sha>` — vk496 in-place apply layer (short SHA, currently **21c8a9c**)
+4. `EnvyBoot <semver>` — MeshEnvy overlay (**`ENVYOS_VERSIONS` `bootloader=`**, currently **0.1.3**; shipped **0.1.2** in distro **v0.1.2**)
 
-- **Use maximum TX power for BLE**  
-  Changed BLE TX power to be set to +8 for nRF52840.
+Official builds: `./scripts/build-bl.sh` from repo root. `get bootloader.ver` reads the **EnvyBoot** line.
 
-- **New boards**  
-  Elecrow ThinkNode M1, M3, M6  
-  LilyGo T-Echo  
-  Minewsemi MX25LE01  
-  Seeed SenseCAP Solar Node P1
+**Lineage:** forked from [Adafruit nRF52 Bootloader](https://github.com/adafruit/Adafruit-nRF52-Bootloader) 0.9.2 and [oltaco OTAFIX](https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX). Release pins and MeshEnvy overlay history: **[CHANGELOG.md](CHANGELOG.md)** and `FRESHEN.lock`. Git tags here use EnvyBoot `v0.1.x`, not `0.9.2-OTAFIX*`.
 
-## Changes in OTAFIX 2.1
+Git remote remains `MeshEnvy/Adafruit_nRF52_Bootloader_OTAFIX` until a repo rename.
 
-- **Defaults to OTA DFU mode**  
-  When no valid application is present, the bootloader defaults to OTA DFU mode.  
-  This prevents devices from becoming stuck in UF2 mode after a failed OTA update.
+---
 
-- **High-MTU BLE support**  
-  Enables larger DFU packets for improved throughput when supported by the client.  
-  The Android DFU app and [`dfu.py`](https://github.com/recrof/nrf_dfu_py) support large packets; the iOS DFU app is limited to 20-byte packets.
+## Upstream
 
-- **Lazy flash erase**  
-  Flash pages are erased on demand during the transfer instead of upfront, significantly reducing the delay during DFU initialisation before the transfer begins.
+Do not duplicate upstream release notes in this repo. See:
 
-- **Small-packet accumulation**  
-  Packets smaller than 64 bytes are combined at the transport layer and written to flash in chunks of up to 240 bytes.  
-  This improves OTA performance from iOS devices and other small-packet DFU hosts by reducing flash write overhead.
+- [Adafruit nRF52 Bootloader](https://github.com/adafruit/Adafruit-nRF52-Bootloader) (base **0.9.2**)
+- [oltaco OTAFIX releases](https://github.com/oltaco/Adafruit_nRF52_Bootloader_OTAFIX/releases)
+- vk496 in-place delta apply: [`feature/ota-delta-apply`](https://github.com/vk496/Adafruit_nRF52_Bootloader_OTAFIX/tree/feature/ota-delta-apply)
 
-- **Automatic application boot after OTA over USB**  
-  When connected to a USB host, devices now automatically reboot into the application after a successful OTA update, instead of requiring a manual reset.
-
-- **Unique BLE advertising names per board**  
-  In OTA DFU mode, devices advertise using a board-specific name instead of the generic `AdaDFU`:
-  - **Elecrow ThinkNode M1** → `TNM1_DFU`
-  - **Elecrow ThinkNode M3** → `TNM3_DFU`
-  - **Elecrow ThinkNode M6** → `TNM6_DFU`
-  - **Heltec T114** → `T114_DFU`
-  - **LILYGO T-Echo** → `LGTE_DFU`
-  - **Minewsemi MX25LE01** → `MX25_DFU`
-  - **ProMicro NRF52840** → `PROM_DFU`
-  - **RAK 4631** → `4631_DFU`
-  - **RAK WisMesh Tag** → `RTAG_DFU`
-  - **Seeed SenseCAP Solar Node P1** → `SCAP_DFU`
-  - **Seeed T1000e** → `T1KE_DFU`
-  - **Seeed WioTracker L1** → `WTL1_DFU`
-  - **XIAO NRF52 BLE / SENSE** → `XIAO_DFU`
+EnvyBoot freshen pins (which tag + vk496 SHA shipped): **`CHANGELOG.md`** + `FRESHEN.lock`.
 
 ---
 
@@ -86,17 +59,17 @@ docker build -t vk-otafix-build .
 docker run --rm -v "$PWD":/src -w /src vk-otafix-build make BOARD=wismesh_tag all
 ```
 
-UF2 output: `_build/build-<board>/update-<board>_bootloader-*_nosd.uf2`  
-Swap `BOARD=` for any board under `src/boards/` (e.g. `wiscore_rak4631_board`).
+UF2 output: `_build/build-<board>/<board>_bootloader-<ver>.uf2`  
+Swap `BOARD=` for any board under `src/boards/` (e.g. `rak4631`, `wismesh_tag`).
 
 ## Installation
 
 **IMPORTANT:** If you are running a MeshCore companion firmware or Ripple firmware on your device **you will need to run an erase after flashing a new bootloader**. Use the MeshCore web flasher to do the erase, it will guide you to the correct erase firmware for your device. Other erase firmwares will not work, they will not erase the ExtraFS area.
 
 The recommended way to install the bootloader is using the UF2 file.  
-Download the UF2 file for your board (they can be found in the releases with filenames beginning with `update-`), enter UF2 mode (usually by double pressing the reset button within 0.5s) and copy the UF2 file across. Or build from source (Docker section above) and copy that UF2.
+Download the UF2 file for your board (look for `<board>_bootloader-<ver>.uf2` in releases), enter UF2 mode (usually by double pressing the reset button within 0.5s) and copy the UF2 file across. Or build from source (Docker section above) and copy that UF2.
 
-If you have somehow managed to accidentally flash an incorrect bootloader to your device you will likely require flashing a full bootloader and SoftDevice zip package using ``adafruit-nrfutil``
+If you have somehow managed to accidentally flash an incorrect bootloader to your device you will likely require the **recovery package** (`<board>_bootloader-<ver>.recovery.zip`). Unzip is not required: open `README.txt` inside the zip for SoftDevice version, EnvyBoot version, and serial DFU steps. Flash with `adafruit-nrfutil dfu serial` (see README).
 
 ---
 

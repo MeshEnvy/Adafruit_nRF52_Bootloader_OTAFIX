@@ -22,8 +22,8 @@
  * THE SOFTWARE.
  */
 
-#ifndef _WISCORE_RAK4631_BOARD_H
-#define _WISCORE_RAK4631_BOARD_H
+#ifndef _RAK4631_BOARD_H
+#define _RAK4631_BOARD_H
 
 // change default 1.8v to 3.3v, add by taylor
 #define UICR_REGOUT0_VALUE UICR_REGOUT0_VOUT_3V3
@@ -65,4 +65,4 @@
 #define UF2_BOARD_ID          "WisBlock-RAK4631-Board"
 #define UF2_INDEX_URL         "https://store.rakwireless.com/collections/wisblock-core"
 
-#endif // _WISCORE_RAK4631_BOARD_H
+#endif // _RAK4631_BOARD_H

@@ -8,7 +8,7 @@
 #   docker run --rm -v "$PWD":/src -w /src vk-otafix-build make BOARD=wismesh_tag all
 #
 # UF2 lands on the host at:
-#   _build/build-<board>/update-<board>_bootloader-*_nosd.uf2
+#   _build/build-<board>/<board>_bootloader-<ver>.uf2
 
 FROM debian:bookworm-slim
 

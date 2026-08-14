@@ -3,9 +3,12 @@
 # See .cursor/skills/envyos-freshen/SKILL.md.
 
 mode: release
+adafruit_base: 0.9.2
+otafix_version: 2.3-BP1.3
 oltaco_tag: 0.9.2-OTAFIX2.3-BP1.3
 oltaco_sha: 297d91f
 vk496_ref: feature/ota-delta-apply
+mota_vk_sha: 21c8a9c
 overlay_commits:
   - 969729b  # uf2 EnvyBoot branding
   - 633738b  # wismesh-tag 3x beep on DFU entry

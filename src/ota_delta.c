@@ -15,7 +15,8 @@ __attribute__((used)) const mota_bl_info_t g_mota_bl_info = {
     MOTA_BL_MAGIC4, MOTA_BL_MAGIC5, MOTA_BL_MAGIC6, MOTA_BL_MAGIC7 },
   MOTA_BL_APPLY_ABI,
   (uint16_t)(1u << 2),                 // this bootloader applies in-place (codec_id 2) deltas
-  { 0, 0, 0, 0 },
+  MOTA_BL_FEAT_WDT_FEED,
+  { 0, 0, 0 },
 };
 
 // ---- `.mota` / EndF on-wire constants (mirror of src/helpers/ota/OtaFormat.h, C-friendly) ---------
@@ -29,6 +30,10 @@ static const uint8_t APRV[4]     = { 'A','P','R','V' };
 #define MFLAG_SIGNED      0x02u
 #define CODEC_INPLACE     2u
 #define PAGE              MOTA_NRF52_FLASH_PAGE
+
+#ifndef OTA_DELTA_HOST_TEST
+  #include "wdt_feed.h"
+#endif
 
 // ---- platform flash / settings / gpregret abstraction --------------------------------------------
 #ifdef OTA_DELTA_HOST_TEST
@@ -104,7 +109,12 @@ static void br_skip(br_t* r, uint32_t k) { if (r->ok && (uint64_t)r->n + k <= r-
 static void sha256_region(uint32_t addr, uint32_t len, uint8_t out[32]) {
   sha256_ctx_t c; sha256_init(&c);
   uint8_t buf[256];
-  while (len) { uint32_t n = len < sizeof(buf) ? len : sizeof(buf); fl_read(addr, buf, n); sha256_update(&c, buf, n); addr += n; len -= n; }
+  while (len) {
+#ifndef OTA_DELTA_HOST_TEST
+    wdt_feed_if_running();
+#endif
+    uint32_t n = len < sizeof(buf) ? len : sizeof(buf); fl_read(addr, buf, n); sha256_update(&c, buf, n); addr += n; len -= n;
+  }
   sha256_final(&c, out);
 }
 
@@ -115,7 +125,12 @@ static int      g_cache_dirty;
 
 static void cache_flush(void) {
   if (!g_cache_page) return;
-  if (g_cache_dirty) { fl_erase(g_cache_page); fl_write_words(g_cache_page, (const uint32_t*)g_cache, PAGE / 4); }
+  if (g_cache_dirty) {
+#ifndef OTA_DELTA_HOST_TEST
+    wdt_feed_if_running();
+#endif
+    fl_erase(g_cache_page); fl_write_words(g_cache_page, (const uint32_t*)g_cache, PAGE / 4);
+  }
   g_cache_page = 0; g_cache_dirty = 0;
 }
 static void cache_use(uint32_t page) {
@@ -134,6 +149,9 @@ static void cread(uint32_t addr, uint8_t* dst, uint32_t n) {     // coherent rea
 }
 static void cwrite(uint32_t addr, const uint8_t* src, uint32_t n) {
   while (n) {
+#ifndef OTA_DELTA_HOST_TEST
+    wdt_feed_if_running();
+#endif
     uint32_t page = addr & ~(PAGE - 1), off = addr - page, chunk = PAGE - off;
     if (chunk > n) chunk = n;
     cache_use(page); memcpy(g_cache + off, src, chunk); g_cache_dirty = 1;
@@ -142,6 +160,9 @@ static void cwrite(uint32_t addr, const uint8_t* src, uint32_t n) {
 }
 static void cerase(uint32_t addr, uint32_t n) {                  // detools calls this page-aligned
   while (n) {
+#ifndef OTA_DELTA_HOST_TEST
+    wdt_feed_if_running();
+#endif
     uint32_t page = addr & ~(PAGE - 1), off = addr - page, step = PAGE - off;
     if (step > n) step = n;
     if (g_cache_page == page) { memset(g_cache, 0xFF, PAGE); g_cache_dirty = 1; }
@@ -260,6 +281,9 @@ static uint32_t scan_mota(struct mota_min* o) {
 // body_len alignment is assumed; the scan stops at the first match (the current image's trailer).
 static int find_body_len(uint32_t* body_len_out) {
   for (uint32_t off = 0; off + ENDF_LEN <= MOTA_NRF52_FS_START - APP_BASE; off++) {
+#ifndef OTA_DELTA_HOST_TEST
+    if ((off & 0xFFFu) == 0) wdt_feed_if_running();
+#endif
     uint8_t e[8];
     fl_read(APP_BASE + off, e, 8);                  // marker(4) + body_len(4)
     if (memcmp(e, ENDF, 4) == 0 && rd_u32(e + 4) == off) { *body_len_out = off; return 1; }

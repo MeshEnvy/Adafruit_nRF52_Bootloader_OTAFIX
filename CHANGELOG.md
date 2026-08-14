@@ -8,11 +8,18 @@ Release pins: `FRESHEN.lock` (`adafruit_base`, `oltaco_tag`, `vk496_ref`, `mota_
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-14
+
+Bench-validated on RAK4631 slim. **Not bundled in an EnvyOS distro publish yet** — interim submodule pin like 0.1.3.
+
 ### Added
 
-- **EnvyBoot 0.2.0 (planned)** — hardware WDT + bootloader WDT feed during mota apply/DFU (`MOTA_BL_FEAT_WDT_FEED`).
+- Hardware WDT feed during mota apply, DFU, and UF2 (`MOTA_BL_FEAT_WDT_FEED` in `g_mota_bl_info`; `src/wdt_feed.h`).
+- GPREGRET occupancy notes in `ota_layout.h`.
 
-## [0.1.3] - 2026-08-14
+### Changed
+
+- EnvyBoot semver **0.2.0** (`ENVYBOOT_VERSION_DEFAULT`).
 
 Interim EnvyBoot release (bootloader submodule pin only). **Not bundled in an EnvyOS distro publish** — fleet ships **0.1.2** until a later distro bundles EnvyBoot ≥ 0.2.0.
 

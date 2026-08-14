@@ -18,6 +18,13 @@
 #define MOTA_NRF52_FS_START    0x000ED000u
 #define MOTA_NRF52_FLASH_PAGE  4096u
 
+// GPREGRET occupancy (nRF52840 POWER registers, retained across reset):
+//   GPREGRET  (GPREGRET0): bootloader command byte — MeshCore OTA apply 0x6A; Adafruit DFU magics
+//                          0x57 UF2, 0x4E serial-only, 0xA8 OTA-BLE, 0xB1 app-jump, 0x6D skip, …
+//                          Watchdog never writes here.
+//   GPREGRET2: telemetry — shutdown ASCII (app), apply diag 0xB0–0xB8.
+// Rule: add a new magic/value here before use; never reuse an assigned byte.
+
 // GPREGRET value MeshCore writes (then resets) to ask the bootloader to apply a staged `.mota`.
 // Distinct from the Adafruit DFU magics (0x57 UF2, 0x4E serial, 0xA8 OTA-BLE) so it never enters DFU.
 #define GPREGRET_OTA_APPLY     0x6Au

@@ -26,11 +26,15 @@
 // bootloader parses changes (e.g. the fixed-layout manifest). The app requires bl.apply_abi >= mota.format_ver.
 #define MOTA_BL_APPLY_ABI  2u
 
+// Feature flags in reserved[0] (add new bits here; never reuse).
+#define MOTA_BL_FEAT_WDT_FEED  0x01u   // feeds app WDT during mota apply / DFU / UF2
+
 typedef struct {
   uint8_t  magic[8];     // MOTA_BL_MAGIC*
   uint16_t apply_abi;    // max .mota format_ver this bootloader can apply
   uint16_t codec_mask;   // bit i set => can apply codec_id i (in-place delta = bit 2)
-  uint8_t  reserved[4];  // 0
+  uint8_t  features;     // MOTA_BL_FEAT_* (reserved[0]; bytes 1-3 stay 0)
+  uint8_t  reserved[3];  // 0
 } mota_bl_info_t;
 
 #endif // OTA_BL_INFO_H_

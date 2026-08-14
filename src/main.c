@@ -68,6 +68,7 @@
 #include "nrfx_nvmc.h"
 
 #include "ota_delta.h"   // MeshCore .mota delta-apply (single-slot, in-place)
+#include "wdt_feed.h"
 
 #ifdef NRF_USBD
 
@@ -478,7 +479,7 @@ void proc_sd_task(void* evt_data, uint16_t evt_size) {
 
   // process BLE and SOC until there is no more events
   while ((NRF_ERROR_NOT_FOUND != proc_ble()) || (NRF_ERROR_NOT_FOUND != proc_soc())) {
-    // nothing
+    wdt_feed_if_running();
   }
 }
 

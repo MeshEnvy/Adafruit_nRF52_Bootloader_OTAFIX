@@ -29,6 +29,7 @@
 #include "uf2.h"
 #include "configkeys.h"
 #include "flash_nrf5x.h"
+#include "wdt_feed.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -405,6 +406,7 @@ void read_block(uint32_t block_no, uint8_t *data) {
  */
 int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
 {
+  wdt_feed_if_running();
   UF2_Block *bl = (void*) data;
 
   if ( !is_uf2_block(bl) ) return -1;

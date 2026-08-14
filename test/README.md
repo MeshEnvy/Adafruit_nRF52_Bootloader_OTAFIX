@@ -10,7 +10,7 @@ code, post-hash) is printed, so a failing apply is debuggable here instead of vi
 ## Run
 
 ```bash
-make check        # apply the committed vector (apply_sim) + the LTO-readback regression (readback_test)
+make check        # apply_sim + readback_test
 ```
 
 Debug an arbitrary scenario (e.g. the real firmware that misbehaved on a device):

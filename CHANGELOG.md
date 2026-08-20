@@ -10,7 +10,7 @@ Release pins: `FRESHEN.lock` (`adafruit_base`, `oltaco_tag`, `vk496_ref`, `mota_
 
 ## [0.2.0] - 2026-08-14
 
-Shipped with EnvyOS distro [v0.2.0](https://github.com/MeshEnvy/envyos/releases/tag/v0.2.0) (practice release).
+Targets EnvyOS distro **v0.2.0** (in progress — not yet on [GitHub Releases](https://github.com/MeshEnvy/envyos/releases)). Developed during internal v0.1.3 bench cycle. Fleet on published **v0.1.2** still ships EnvyBoot **0.1.2**.
 
 ### Added
 

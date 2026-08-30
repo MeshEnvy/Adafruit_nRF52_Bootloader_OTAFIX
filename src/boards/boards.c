@@ -680,7 +680,7 @@ void neopixel_write (uint8_t *pixels) {
 // Display controller
 //--------------------------------------------------------------------+
 
-#ifdef DISPLAY_CONTROLLER_ST7789
+#if defined(DISPLAY_CONTROLLER_ST7789) || defined(DISPLAY_CONTROLLER_ST7735)
 
 #define ST_CMD_DELAY 0x80 // special signifier for command lists
 
@@ -715,6 +715,7 @@ void neopixel_write (uint8_t *pixels) {
 #define ST77XX_MADCTL_MV 0x20
 #define ST77XX_MADCTL_ML 0x10
 #define ST77XX_MADCTL_RGB 0x00
+#define ST77XX_MADCTL_BGR 0x08
 
 #define ST77XX_RDID1 0xDA
 #define ST77XX_RDID2 0xDB
@@ -732,7 +733,136 @@ void neopixel_write (uint8_t *pixels) {
 #define ST77XX_YELLOW 0xFFE0
 #define ST77XX_ORANGE 0xFC00
 
+#ifdef DISPLAY_CONTROLLER_ST7735
+#define ST7735_TFTWIDTH_128 128  // for 1.44 and mini
+#define ST7735_TFTWIDTH_80 80    // for mini
+#define ST7735_TFTHEIGHT_128 128 // for 1.44" display
+#define ST7735_TFTHEIGHT_160 160 // for 1.8" and mini display
+
+#define INITR_GREENTAB 0x00
+#define INITR_REDTAB 0x01
+#define INITR_BLACKTAB 0x02
+#define INITR_18GREENTAB INITR_GREENTAB
+#define INITR_18REDTAB INITR_REDTAB
+#define INITR_18BLACKTAB INITR_BLACKTAB
+#define INITR_144GREENTAB 0x01
+#define INITR_MINI160x80 0x04
+#define INITR_HALLOWING 0x05
+#define INITR_MINI160x80_PLUGIN 0x06
+
+#define ST7735_MADCTL_BGR 0x08
+#define ST7735_MADCTL_MH 0x04
+
+#define ST7735_FRMCTR1 0xB1
+#define ST7735_FRMCTR2 0xB2
+#define ST7735_FRMCTR3 0xB3
+#define ST7735_INVCTR 0xB4
+#define ST7735_DISSET5 0xB6
+
+#define ST7735_PWCTR1 0xC0
+#define ST7735_PWCTR2 0xC1
+#define ST7735_PWCTR3 0xC2
+#define ST7735_PWCTR4 0xC3
+#define ST7735_PWCTR5 0xC4
+#define ST7735_VMCTR1 0xC5
+
+#define ST7735_PWCTR6 0xFC
+
+#define ST7735_GMCTRP1 0xE0
+#define ST7735_GMCTRN1 0xE1
+
+#define ST7735_BLACK ST77XX_BLACK
+#define ST7735_WHITE ST77XX_WHITE
+#define ST7735_RED ST77XX_RED
+#define ST7735_GREEN ST77XX_GREEN
+#define ST7735_BLUE ST77XX_BLUE
+#define ST7735_CYAN ST77XX_CYAN
+#define ST7735_MAGENTA ST77XX_MAGENTA
+#define ST7735_YELLOW ST77XX_YELLOW
+#define ST7735_ORANGE ST77XX_ORANGE
+#endif
+
 static void tft_controller_init(void) {
+#ifdef DISPLAY_CONTROLLER_ST7735
+  uint8_t cmdinit_st7735[] = {
+    #if !defined(DISPLAY_PIN_RST) || (DISPLAY_PIN_RST < 0)
+    ST77XX_SWRESET,   ST_CMD_DELAY,
+      150,
+    #endif
+    ST77XX_SLPOUT,    ST_CMD_DELAY,
+      255,
+    ST7735_FRMCTR1, 3,
+      0x01, 0x2C, 0x2D,
+    ST7735_FRMCTR2, 3,
+      0x01, 0x2C, 0x2D,
+    ST7735_FRMCTR3, 6,
+      0x01, 0x2C, 0x2D,
+      0x01, 0x2C, 0x2D,
+    ST7735_INVCTR,  1,
+      0x07,
+    ST7735_PWCTR1,  3,
+      0xA2,
+      0x02,
+      0x84,
+    ST7735_PWCTR2,  1,
+      0xC5,
+    ST7735_PWCTR3,  2,
+      0x0A,
+      0x00,
+    ST7735_PWCTR4,  2,
+      0x8A,
+      0x2A,
+    ST7735_PWCTR5,  2,
+      0x8A, 0xEE,
+    ST7735_VMCTR1,  1,
+      0x0E,
+    ST77XX_INVOFF,  0,
+    ST77XX_MADCTL,  1,
+      DISPLAY_MADCTL,
+    ST77XX_COLMOD,  1,
+      0x05,
+    ST77XX_CASET,   4,
+      0x00, 0x00,
+      0x00, 0x4F,
+    ST77XX_RASET,   4,
+      0x00, 0x00,
+      0x00, 0x9F,
+    ST7735_GMCTRP1, 16,
+      0x02, 0x1c, 0x07, 0x12,
+      0x37, 0x32, 0x29, 0x2d,
+      0x29, 0x25, 0x2B, 0x39,
+      0x00, 0x01, 0x03, 0x10,
+    ST7735_GMCTRN1, 16,
+      0x03, 0x1d, 0x07, 0x06,
+      0x2E, 0x2C, 0x29, 0x2D,
+      0x2E, 0x2E, 0x37, 0x3F,
+      0x00, 0x00, 0x02, 0x10,
+    ST77XX_NORON,     ST_CMD_DELAY,
+      10,
+    ST77XX_DISPON,    ST_CMD_DELAY,
+      100
+  };
+
+  size_t count = 0;
+  while (count < sizeof(cmdinit_st7735)) {
+    uint8_t const cmd = cmdinit_st7735[count++];
+    uint8_t const cmd_arg = cmdinit_st7735[count++];
+    uint8_t const has_delay = cmd_arg & ST_CMD_DELAY;
+    uint8_t const narg = cmd_arg & ~ST_CMD_DELAY;
+
+    tft_cmd(cmd, cmdinit_st7735 + count, narg);
+    count += narg;
+
+    if (has_delay) {
+      uint16_t delay = (uint16_t) cmdinit_st7735[count++];
+      if (delay == 255) {
+        delay = 500;
+      }
+      NRFX_DELAY_MS(delay);
+    }
+  }
+#endif
+#ifdef DISPLAY_CONTROLLER_ST7789
   // Init commands for 7789 screens
   uint8_t cmdinit_st7789[] = {
       #if !defined(DISPLAY_PIN_RST) || (DISPLAY_PIN_RST < 0)
@@ -777,6 +907,7 @@ static void tft_controller_init(void) {
       NRFX_DELAY_MS(delay);
     }
   }
+#endif
 }
 
 #endif

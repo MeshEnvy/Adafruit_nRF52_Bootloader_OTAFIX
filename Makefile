@@ -40,14 +40,13 @@ else
   LD_FILE = linker/$(MCU_SUB_VARIANT).ld
 endif
 
-ifndef GIT_VERSION
-GIT_VERSION := $(shell git describe --dirty --always --tags 2>/dev/null)
-# This OTAFIX fork is released as tags of the form 0.9.2-OTAFIX<major>.<minor>. An untagged
-# build makes `git describe` fall back to a bare commit hash, which the MK_BOOTLOADER_VERSION
-# parser below cannot split into major.minor.patch — substitute the release string instead.
-ifeq (,$(findstring OTAFIX,$(GIT_VERSION)))
-GIT_VERSION := 0.9.2-OTAFIX2.3
+# EnvyOS identity only — not git describe, not oltaco/vk496 OTAFIX-BP tags.
+# ./envyos build bootloader passes ENVYBOOT_VERSION from packages-meta (0.9.2-evN).
+ifdef ENVYBOOT_VERSION
+  GIT_VERSION := $(ENVYBOOT_VERSION)
 endif
+ifndef GIT_VERSION
+  GIT_VERSION := 0.9.2-ev1
 endif
 ifndef GIT_SUBMODULE_VERSIONS
 GIT_SUBMODULE_VERSIONS := $(shell git submodule status 2>/dev/null | cut -d" " -f3,4 | paste -s -d" " -)
@@ -430,9 +429,9 @@ clean:
 linkermap: $(BUILD)/$(OUT_NAME).out
 	@linkermap -v $<.map
 
-# GIT_VERSION is passed on the command line (e.g. build-bl.sh GIT_VERSION=0.1.0). When it
-# changes without a clean, stale .o files keep the old -DUF2_VERSION* strings — rewrite
-# this stamp so every object rebuilds.
+# ENVYBOOT_VERSION / GIT_VERSION is passed on the command line. When it changes without
+# a clean, stale .o files keep the old -DUF2_VERSION* strings — rewrite this stamp so
+# every object rebuilds.
 $(BUILD)/version.stamp: force
 	@$(MKDIR) $(BUILD)
 	@echo '$(GIT_VERSION)' | cmp -s - $@ 2>/dev/null || echo '$(GIT_VERSION)' > $@
